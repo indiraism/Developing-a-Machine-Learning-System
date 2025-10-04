@@ -29,7 +29,7 @@ jobs:
         python preprocessing/automate_Indira.py
 
     - name: Upload Hasil Preprocessing
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: dataset-preprocessed
         path: preprocessing/gene_expression_preprocessed/
