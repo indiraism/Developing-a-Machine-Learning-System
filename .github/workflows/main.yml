@@ -1,35 +1,28 @@
 name: CI MLflow
 
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:  # bisa dijalankan manual juga
+on: [push, pull_request]
 
 jobs:
-  preprocessing:
+  experiment:
     runs-on: ubuntu-latest
-    
+
+    env:
+      DATASET_FILE: preprocessing/gene_expression_preprocessed.xlsx
+
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-    - name: Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.10"
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
 
-    - name: Install Dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pandas numpy scikit-learn scipy
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt || true
+          pip install pandas numpy scikit-learn openpyxl
 
-    - name: Jalankan Preprocessing
-      run: |
-        python preprocessing/automate_Indira.py
-
-    - name: Upload Hasil Preprocessing
-      uses: actions/upload-artifact@v4
-      with:
-        name: dataset-preprocessed
-        path: preprocessing/gene_expression_preprocessed/
+      - name: Run automation script
+        run: |
+          python preprocessing/automate_Indira.py --dataset ${{ env.DATASET_FILE }}
