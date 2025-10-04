@@ -5,24 +5,21 @@ on: [push, pull_request]
 jobs:
   experiment:
     runs-on: ubuntu-latest
-
-    env:
-      DATASET_FILE: preprocessing/gene_expression_preprocessed.xlsx
-
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.10"
 
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt || true
-          pip install pandas numpy scikit-learn openpyxl
+          pip install pandas scikit-learn openpyxl
 
       - name: Run automation script
         run: |
-          python preprocessing/automate_Indira.py --dataset ${{ env.DATASET_FILE }}
+          python preprocessing/automate_Indira.py \
+            --dataset preprocessing/gene_expression_preprocessed.xlsx \
+            --output preprocessing/gene_expression_clean.xlsx
