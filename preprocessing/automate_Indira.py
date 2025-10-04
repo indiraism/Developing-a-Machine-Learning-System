@@ -1,4 +1,4 @@
-# automate_Indira.py
+# automate_Indira.py (versi auto-detect target)
 
 import os
 import pandas as pd
@@ -7,47 +7,55 @@ from sklearn.preprocessing import StandardScaler, LabelEncoder
 from scipy.stats import zscore
 
 
+def detect_target(data, target_col: str):
+    """Coba deteksi target jika target_col tidak ada di dataset."""
+    if target_col in data.columns:
+        return target_col
+    
+    print(f"[WARNING] Kolom target '{target_col}' tidak ditemukan.")
+    print(f"Kolom tersedia: {list(data.columns)}")
+
+    # Cari kandidat kolom target: kategorikal / biner
+    candidate_targets = []
+    for col in data.columns:
+        unique_vals = data[col].nunique()
+        if unique_vals <= 10:  # biasanya target tidak banyak kelas
+            candidate_targets.append((col, unique_vals))
+    
+    if not candidate_targets:
+        raise ValueError("Tidak ditemukan kandidat kolom target otomatis. Harap cek dataset.")
+    
+    if len(candidate_targets) == 1:
+        print(f"[INFO] Otomatis memilih '{candidate_targets[0][0]}' sebagai target (unik: {candidate_targets[0][1]}).")
+        return candidate_targets[0][0]
+    else:
+        print("[INFO] Ditemukan beberapa kandidat target:")
+        for col, uniq in candidate_targets:
+            print(f"  - {col} (unik: {uniq})")
+        raise ValueError("Terlalu banyak kandidat target, harap pilih manual di script.")
+    
+
 def preprocess_data(filepath: str, target_col: str, output_dir: str = "preprocessing/namadataset_preprocessing"):
     """
     Melakukan preprocessing otomatis berdasarkan eksperimen sebelumnya.
-
-    Parameters
-    ----------
-    filepath : str
-        Path ke dataset CSV.
-    target_col : str
-        Nama kolom target (label) yang ingin diprediksi.
-    output_dir : str
-        Folder tempat menyimpan dataset hasil preprocessing.
-
-    Returns
-    -------
-    X : pd.DataFrame
-        Fitur yang sudah diproses (siap latih).
-    y : pd.Series
-        Label/target yang sudah di-encode (jika kategorikal).
     """
-
     # === 1. Load data ===
     data = pd.read_csv(filepath)
 
-    # === 2. Cek apakah target ada di kolom ===
-    if target_col not in data.columns:
-        print(f"[ERROR] Kolom target '{target_col}' tidak ditemukan!")
-        print(f"Kolom yang tersedia dalam dataset: {list(data.columns)}")
-        raise ValueError(f"Target column '{target_col}' not found in dataset.")
+    # === 2. Deteksi kolom target ===
+    target_col = detect_target(data, target_col)
 
     # === 3. Drop kolom identifier (jika ada) ===
     if "PatientID" in data.columns:
         data.drop(columns=["PatientID"], inplace=True)
 
-    # === 4. Tangani missing values (drop jika ada NA) ===
+    # === 4. Tangani missing values ===
     data.dropna(inplace=True)
 
     # === 5. Hapus duplikat ===
     data.drop_duplicates(inplace=True)
 
-    # === 6. Deteksi & hapus outlier (berdasarkan Z-score pada kolom numerik) ===
+    # === 6. Hapus outlier (Z-score) ===
     numeric_cols = data.select_dtypes(include=[np.number]).columns
     if len(numeric_cols) > 0:
         z_scores = np.abs(zscore(data[numeric_cols]))
@@ -57,34 +65,32 @@ def preprocess_data(filepath: str, target_col: str, output_dir: str = "preproces
     X = data.drop(columns=[target_col])
     y = data[target_col]
 
-    # === 8. Encoding label target (jika kategorikal) ===
+    # === 8. Encode target jika kategorikal ===
     if y.dtype == "object":
         le = LabelEncoder()
         y = le.fit_transform(y)
 
-    # === 9. Encoding kolom kategorikal fitur ===
+    # === 9. Encode fitur kategorikal ===
     cat_cols = X.select_dtypes(include=["object"]).columns
     for col in cat_cols:
         le = LabelEncoder()
         X[col] = le.fit_transform(X[col].astype(str))
 
-    # === 10. Standardisasi fitur numerik ===
+    # === 10. Standarisasi fitur numerik ===
     scaler = StandardScaler()
     X[numeric_cols] = scaler.fit_transform(X[numeric_cols])
 
-    # === 11. Simpan hasil ke folder output ===
+    # === 11. Simpan hasil ===
     os.makedirs(output_dir, exist_ok=True)
     processed_data = pd.concat([X, pd.Series(y, name=target_col)], axis=1)
     output_path = os.path.join(output_dir, "dataset_preprocessed.csv")
     processed_data.to_csv(output_path, index=False)
 
     print(f"[INFO] Hasil preprocessing disimpan ke: {output_path}")
-
     return X, y
 
 
 if __name__ == "__main__":
-    # Sesuaikan path dan target sesuai dataset Anda
     input_path = "namadataset_raw/dataset.csv"   # dataset mentah
-    target_column = "DiseaseStatus"              # ganti sesuai kolom target yang benar
+    target_column = "DiseaseStatus"              # target default (jika tidak ada, akan dicari otomatis)
     preprocess_data(input_path, target_column)
