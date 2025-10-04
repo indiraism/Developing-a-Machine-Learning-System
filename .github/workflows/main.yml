@@ -21,5 +21,5 @@ jobs:
       - name: Run automation script
         run: |
           python preprocessing/automate_Indira.py \
-            --dataset preprocessing/gene_expression_preprocessed.xlsx \
-            --output preprocessing/gene_expression_clean.xlsx
+            --dataset preprocessing/gene_expression_preprocessed.csv \
+            --output preprocessing/gene_expression_clean.csv
